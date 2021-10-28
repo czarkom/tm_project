@@ -1,0 +1,14 @@
+ /* ./src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+    font-family: "Ubi";
+    src: local("Ubiquitous"), url("fonts/Ubiquitous.ttf");
+}
+
+.button {
+    @apply text-gray-500 cursor-not-allowed;
+}
+
