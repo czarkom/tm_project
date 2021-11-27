@@ -7,7 +7,7 @@
       </div>
       <div class="my-10 text-xl">
         <div class="pb-2">
-          Add file (accepted format .wav)
+          Add file
         </div>
         <div class="flex justify-center text-sm">
           <div class="px-4 py-2 border-2 border-red rounded-xl mx-2 cursor-pointer" @click="fireUpload">
@@ -49,6 +49,7 @@
                      :audio-controls="false"
                      :canv-width="1000"
                      :fft-size="4096"
+                     :caps-drop-speed="10"
             />
           </div>
           <div class="mt-6">
@@ -57,6 +58,8 @@
                 ref-link="foo2"
                 :audio-controls="true"
                 :canv-width="1000"
+                :playtime-clickable="false"
+
             />
           </div>
         </div>
@@ -74,67 +77,82 @@ export default {
     SoundMixer,
   },
 
-  data(){
+  data() {
     return {
       file: null,
       source: null,
       sourceCopy: null,
       filename: null,
-      playing: false
+      playing: false,
+      audioCtx: new AudioContext(),
+      reader: new FileReader(),
+      soundSource: undefined,
     }
   },
 
   methods: {
-    handleFileUpload(e){
+    handleFileUpload(e) {
       var files = e.target.files || e.dataTransfer.files;
-      if(!files.length) return;
+      if (!files.length) return;
       let file = files[0];
-
       this.file = file;
       this.source = URL.createObjectURL(file);
       this.filename = file.name;
-      this.processFile();
-      document.getElementById("audio").load();
-      document.getElementById("audio2").load();
+      this.processFile(file);
+      // document.getElementById("audio").load();
+      // document.getElementById("audio2").load();
     },
-    fireUpload(){
+    fireUpload() {
       // this.$el.querySelector("#upload").click();
       document.getElementById("upload").click();
     },
 
-    processFile(){
-      var audioCtx = new AudioContext();
-      var reader = new FileReader();
-      reader.onload = function (ev) {
-        audioCtx.decodeAudioData(ev.target.result).then(function(buffer){
-          var soundSource = audioCtx.createBufferSource();
-          soundSource.buffer = buffer;
-
-          var compressor = audioCtx.createDynamicsCompressor();
-
-          compressor.threshold.setValueAtTime(-20, audioCtx.currentTime);
-          compressor.knee.setValueAtTime(-30, audioCtx.currentTime);
-          compressor.ratio.setValueAtTime(5, audioCtx.currentTime);
-          compressor.attack.setValueAtTime(.05, audioCtx.currentTime);
-          compressor.release.setValueAtTime(.25, audioCtx.currentTime);
-
-          soundSource.connect(compressor);
-
-          compressor.connect(audioCtx.destination);
-          // soundSource.start(0);
-        });
-      }
-      reader.readAsArrayBuffer(this.file);
+    processFile(file){
+      this.reader.onload = (e) => {
+        this.file = e.target.result;
+      };
+      this.reader.readAsArrayBuffer(file);
     },
-    playAudio(){
-      this.$el.querySelector("#audio2").play();
-      this.$el.querySelector("#audio").play();
+    playAudio() {
+      this.play();
+      // this.play();
+      // this.$el.querySelector("#audio2").play();
+      // this.$el.querySelector("#audio").play();
       this.playing = true;
     },
-    pauseAudio(){
-      this.$el.querySelector("#audio2").pause();
-      this.$el.querySelector("#audio").pause();
+    pauseAudio() {
+      console.log(this.file)
+      this.soundSource.stop(0);
+      // this.$el.querySelector("#audio2").pause();
+      // this.$el.querySelector("#audio").pause();
       this.playing = false;
+    },
+    play() {
+      console.log(this.file)
+      let fileCopy = this.copy(this.file);
+      this.audioCtx.decodeAudioData(fileCopy).then((buffer) => {
+        this.soundSource = this.audioCtx.createBufferSource();
+        this.soundSource.buffer = buffer;
+
+        var compressor = this.audioCtx.createDynamicsCompressor();
+
+        compressor.threshold.setValueAtTime(-20, this.audioCtx.currentTime);
+        compressor.knee.setValueAtTime(-30, this.audioCtx.currentTime);
+        compressor.ratio.setValueAtTime(5, this.audioCtx.currentTime);
+        compressor.attack.setValueAtTime(.05, this.audioCtx.currentTime);
+        compressor.release.setValueAtTime(.25, this.audioCtx.currentTime);
+
+        this.soundSource.playbackRate.value = 0.5;
+        this.soundSource.connect(compressor);
+
+        compressor.connect(this.audioCtx.destination);
+        this.soundSource.start(0);
+      });
+    },
+    copy(src)  {
+      let dst = new ArrayBuffer(src.byteLength);
+      new Uint8Array(dst).set(new Uint8Array(src));
+      return dst;
     }
   }
 }
