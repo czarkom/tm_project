@@ -2,10 +2,10 @@
   <div class="w-full text-center" style="font-family: 'Ubi';">
     <img class="h-auto w-screen h-screen bg-black top-0 left-0 opacity-50 absolute" src="@/assets/background.jpg">
     <div class="relative text-gray-100">
-      <div class="mt-10 p-2 border-t-2 border-b-2 border-gray-300">
-        <div style="font-size: 50px;" class="font-semibold text-gray-800">Mixerinho</div>
+      <div class="mt-6 p-2 border-t-2 border-b-2 border-gray-300">
+        <div style="font-size: 50px;" class="font-semibold text-gray-800">Mixerinho {{ chosenEffect }}</div>
       </div>
-      <div class="my-10 text-xl">
+      <div class="my-4 text-xl">
         <div class="pb-2">
           Add file
         </div>
@@ -22,8 +22,8 @@
         </div>
 
       </div>
-      <div v-if="file">
-        <SoundMixer/>
+      <div v-if="fileArrayBuffer">
+        <SoundMixer @update:model-value="handleChosenEffect($event)" :model-value="chosenEffect"/>
         <div class="flex justify-center w-full my-4">
           <div class="border-2 border-red px-2 mx-2 cursor-pointer rounded border-gray-800 bg-gray-800"
                :class="{button: playing}"
@@ -38,28 +38,30 @@
         </div>
 
         <div class="flex flex-col items-center">
-          <div class="flex justify-center w-full my-4">
-            <audio ref="foo" id="audio" :src="source"></audio>
-            <audio ref="foo2" id="audio2" class="hidden" controls :src="source" :muted="true"></audio>
+          <div class="flex justify-center w-full">
+            <audio ref="foo" id="audio"></audio>
+            <audio ref="foo2" id="audio2"></audio>
           </div>
-          <div class="mb-6">
-            <av-bars v-if="source"
+          <div class="mb-6" v-if="showCharts">
+            <div class="flex justify-center">Frequency chart for sound without effect</div>
+            <av-bars
                      :bar-color="['#f00', '#ff0', '#0f0']"
                      ref-link="foo"
-                     :audio-controls="false"
+                     :audio-controls="true"
                      :canv-width="1000"
                      :fft-size="4096"
                      :caps-drop-speed="10"
             />
           </div>
-          <div class="mt-6">
-            <av-waveform
-                v-if="source"
+          <div class="mb-6" v-if="showCharts && chosenEffect !== 'normal'">
+            <div class="flex justify-center">Frequency chart for sound with {{chosenEffect}} effect</div>
+            <av-bars
+                :bar-color="['#f00', '#ff0', '#0f0']"
                 ref-link="foo2"
                 :audio-controls="true"
                 :canv-width="1000"
-                :playtime-clickable="false"
-
+                :fft-size="4096"
+                :caps-drop-speed="10"
             />
           </div>
         </div>
@@ -79,14 +81,16 @@ export default {
 
   data() {
     return {
-      file: null,
-      source: null,
-      sourceCopy: null,
+      fileArrayBuffer: null,
       filename: null,
       playing: false,
-      audioCtx: new AudioContext(),
       reader: new FileReader(),
-      soundSource: undefined,
+      chosenEffect: 'normal',
+      showCharts: false,
+      soundSourceNormal: null,
+      soundSourceWithEffect: null,
+      audioCtxNormal: null,
+      audioCtxEffect: null
     }
   },
 
@@ -95,64 +99,137 @@ export default {
       var files = e.target.files || e.dataTransfer.files;
       if (!files.length) return;
       let file = files[0];
-      this.file = file;
       this.source = URL.createObjectURL(file);
       this.filename = file.name;
       this.processFile(file);
-      // document.getElementById("audio").load();
-      // document.getElementById("audio2").load();
     },
     fireUpload() {
-      // this.$el.querySelector("#upload").click();
-      document.getElementById("upload").click();
+      this.$el.querySelector("#upload").click();
     },
 
-    processFile(file){
+    processFile(file) {
       this.reader.onload = (e) => {
-        this.file = e.target.result;
+        this.fileArrayBuffer = e.target.result;
+        this.prepareNormal();
       };
       this.reader.readAsArrayBuffer(file);
     },
     playAudio() {
-      this.play();
-      // this.play();
-      // this.$el.querySelector("#audio2").play();
-      // this.$el.querySelector("#audio").play();
+      if(this.audioCtxNormal.state === 'suspended'){
+        this.audioCtxNormal.resume();
+      } else {
+        this.soundSourceNormal.start(0);
+      }
+      if(this.chosenEffect !== 'normal' && this.audioCtxEffect && this.audioCtxEffect.state === 'suspended'){
+        this.audioCtxEffect.resume();
+      } else if(this.chosenEffect !== 'normal') {
+        this.soundSourceWithEffect.start(0);
+      }
+      this.$el.querySelector("#audio2").play();
+      this.$el.querySelector("#audio").play();
       this.playing = true;
     },
     pauseAudio() {
-      console.log(this.file)
-      this.soundSource.stop(0);
-      // this.$el.querySelector("#audio2").pause();
-      // this.$el.querySelector("#audio").pause();
+      this.audioCtxNormal.suspend();
+      if(this.chosenEffect !== 'normal') this.audioCtxEffect.suspend();
+      this.$el.querySelector("#audio2").pause();
+      this.$el.querySelector("#audio").pause();
       this.playing = false;
     },
-    play() {
-      console.log(this.file)
-      let fileCopy = this.copy(this.file);
-      this.audioCtx.decodeAudioData(fileCopy).then((buffer) => {
-        this.soundSource = this.audioCtx.createBufferSource();
-        this.soundSource.buffer = buffer;
-
-        var compressor = this.audioCtx.createDynamicsCompressor();
-
-        compressor.threshold.setValueAtTime(-20, this.audioCtx.currentTime);
-        compressor.knee.setValueAtTime(-30, this.audioCtx.currentTime);
-        compressor.ratio.setValueAtTime(5, this.audioCtx.currentTime);
-        compressor.attack.setValueAtTime(.05, this.audioCtx.currentTime);
-        compressor.release.setValueAtTime(.25, this.audioCtx.currentTime);
-
-        this.soundSource.playbackRate.value = 0.5;
-        this.soundSource.connect(compressor);
-
-        compressor.connect(this.audioCtx.destination);
-        this.soundSource.start(0);
-      });
-    },
-    copy(src)  {
+    copy(src) {
       let dst = new ArrayBuffer(src.byteLength);
       new Uint8Array(dst).set(new Uint8Array(src));
       return dst;
+    },
+    prepareNormal() {
+      let fileCopy = this.copy(this.fileArrayBuffer);
+      this.audioCtxNormal = new AudioContext();
+      this.audioCtxNormal.decodeAudioData(fileCopy).then((buffer) => {
+        this.soundSourceNormal = this.audioCtxNormal.createBufferSource();
+        this.soundSourceNormal.buffer = buffer;
+
+        const streamNode = this.audioCtxNormal.createMediaStreamDestination();
+        this.soundSourceNormal.connect(streamNode);
+
+        const gainNode = this.audioCtxNormal.createGain();
+        this.soundSourceNormal
+            .connect(gainNode)
+            .connect(this.audioCtxNormal.destination)
+
+        if(this.chosenEffect !== 'normal'){
+          console.log("Original audio muted")
+          gainNode.gain.value = -2;
+        }
+
+        let audioElem = this.$el.querySelector("#audio");
+        audioElem.srcObject = streamNode.stream;
+        this.showCharts = true;
+      });
+    },
+    prepareFlanger() {
+      let fileCopy = this.copy(this.fileArrayBuffer);
+      this.audioCtxEffect = new AudioContext();
+      this.audioCtxEffect.decodeAudioData(fileCopy).then((buffer) => {
+        this.soundSourceWithEffect = this.audioCtxEffect.createBufferSource();
+        this.soundSourceWithEffect.buffer = buffer;
+
+        const streamNode = this.audioCtxEffect.createMediaStreamDestination();
+
+        let biquadFilter = this.audioCtxEffect.createBiquadFilter();
+        let convolver = this.audioCtxEffect.createConvolver();
+        convolver.buffer = buffer;
+        console.log("bassfilter prepared")
+
+        this.soundSourceWithEffect
+            .connect(biquadFilter)
+            .connect(convolver)
+            .connect(streamNode)
+
+        biquadFilter.type = "lowshelf";
+        biquadFilter.frequency.setValueAtTime(1000, this.audioCtxEffect.currentTime);
+        biquadFilter.gain.setValueAtTime(50, this.audioCtxEffect.currentTime);
+
+        let audioElem = this.$el.querySelector("#audio2");
+        audioElem.srcObject = streamNode.stream;
+        this.showCharts = true;
+      });
+    },
+    prepareBassBoosted() {
+      let fileCopy = this.copy(this.fileArrayBuffer);
+      this.audioCtxEffect = new AudioContext();
+      this.audioCtxEffect.decodeAudioData(fileCopy).then((buffer) => {
+        this.soundSourceWithEffect = this.audioCtxEffect.createBufferSource();
+        this.soundSourceWithEffect.buffer = buffer;
+
+        let bassFilter = this.audioCtxEffect.createBiquadFilter();
+        bassFilter.type = "lowshelf";
+        bassFilter.frequency.value = 1000;  // switches to 400 in UI
+
+        const streamNode = this.audioCtxEffect.createMediaStreamDestination();
+
+        this.soundSourceWithEffect.connect(streamNode);
+
+        let audioElem = this.$el.querySelector("#audio2");
+        audioElem.srcObject = streamNode.stream;
+        this.showCharts = true;
+      });
+    },
+    handleChosenEffect(val) {
+      this.chosenEffect = val
+      this.$el.querySelector("#audio").pause();
+      this.$el.querySelector("#audio2").pause();
+      this.audioCtxNormal.suspend();
+      if(this.audioCtxEffect) this.audioCtxEffect.suspend();
+      this.playing = false;
+      if(val === "normal"){
+        this.prepareNormal();
+      } else if (val === "flanger"){
+        this.prepareNormal();
+        this.prepareFlanger();
+      } else if (val === "bass_boosted"){
+        this.prepareNormal();
+        this.prepareBassBoosted();
+      }
     }
   }
 }

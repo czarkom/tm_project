@@ -26,12 +26,17 @@
 export default {
   name: 'SoundMixer',
   props: {
-    msg: String
+    modelValue: String
   },
-
-  data(){
-    return{
-      chosenEffect: 'normal'
+  emits:['update:modelValue'],
+  data() {
+    return {
+      chosenEffect: "normal"
+    }
+  },
+  watch: {
+    chosenEffect() {
+      this.$emit('update:modelValue', this.chosenEffect);
     }
   }
 }
