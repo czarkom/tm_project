@@ -51,6 +51,7 @@
                      :canv-width="1000"
                      :fft-size="4096"
                      :caps-drop-speed="10"
+                     :cors-anonym="true"
             />
           </div>
           <div class="mb-6" v-if="showCharts && chosenEffect !== 'normal'">
@@ -186,8 +187,7 @@ export default {
             .connect(streamNode)
 
         biquadFilter.type = "lowshelf";
-        biquadFilter.frequency.setValueAtTime(1000, this.audioCtxEffect.currentTime);
-        biquadFilter.gain.setValueAtTime(50, this.audioCtxEffect.currentTime);
+
 
         let audioElem = this.$el.querySelector("#audio2");
         audioElem.srcObject = streamNode.stream;
@@ -201,13 +201,87 @@ export default {
         this.soundSourceWithEffect = this.audioCtxEffect.createBufferSource();
         this.soundSourceWithEffect.buffer = buffer;
 
-        let bassFilter = this.audioCtxEffect.createBiquadFilter();
-        bassFilter.type = "lowshelf";
-        bassFilter.frequency.value = 1000;  // switches to 400 in UI
+        let biquadFilter = this.audioCtxEffect.createBiquadFilter();
 
         const streamNode = this.audioCtxEffect.createMediaStreamDestination();
 
-        this.soundSourceWithEffect.connect(streamNode);
+        this.soundSourceWithEffect
+            .connect(biquadFilter)
+            .connect(streamNode);
+
+        biquadFilter.type = "lowpass";
+        biquadFilter.frequency.setValueAtTime(700, this.audioCtxEffect.currentTime);
+        biquadFilter.gain.setValueAtTime(2000, this.audioCtxEffect.currentTime);
+
+        let audioElem = this.$el.querySelector("#audio2");
+        audioElem.srcObject = streamNode.stream;
+        this.showCharts = true;
+      });
+    },
+    prepareConvolver() {
+      let fileCopy = this.copy(this.fileArrayBuffer);
+      this.audioCtxEffect = new AudioContext();
+      this.audioCtxEffect.decodeAudioData(fileCopy).then((buffer) => {
+        this.soundSourceWithEffect = this.audioCtxEffect.createBufferSource();
+        this.soundSourceWithEffect.buffer = buffer;
+
+        const streamNode = this.audioCtxEffect.createMediaStreamDestination();
+
+        let convolver = this.audioCtxEffect.createConvolver();
+        let noiseBuffer = this.audioCtxEffect.createBuffer(2, 0.5 * this.audioCtxEffect.sampleRate, this.audioCtxEffect.sampleRate);
+        let left = noiseBuffer.getChannelData(0);
+        let right = noiseBuffer.getChannelData(1);
+        for (let i = 0; i < noiseBuffer.length; i++) {
+          left[i] = Math.random() * 2 - 1;
+          right[i] = Math.random() * 2 - 1;
+        }
+
+        convolver.buffer = noiseBuffer;
+        console.log("convolver prepared")
+
+        this.soundSourceWithEffect
+            .connect(convolver)
+            .connect(streamNode)
+
+        let audioElem = this.$el.querySelector("#audio2");
+        audioElem.srcObject = streamNode.stream;
+        this.showCharts = true;
+      });
+    },
+    prepareBitcrusher(){
+      let fileCopy = this.copy(this.fileArrayBuffer);
+      this.audioCtxEffect = new AudioContext();
+      this.audioCtxEffect.decodeAudioData(fileCopy).then((buffer) => {
+        this.soundSourceWithEffect = this.audioCtxEffect.createBufferSource();
+        this.soundSourceWithEffect.buffer = buffer;
+
+        const streamNode = this.audioCtxEffect.createMediaStreamDestination();
+
+        console.log("dupa")
+        const bufferSize = 4096;
+        let bitcrusher = this.audioCtxEffect.createScriptProcessor(bufferSize, 1, 1);
+        bitcrusher.bits = 4; // between 1 and 16
+        bitcrusher.normfreq = 0.1; // between 0.0 and 1.0
+        let step = Math.pow(1/2, bitcrusher.bits);
+        let phaser = 0;
+        let last = 0;
+        bitcrusher.onaudioprocess = function(e) {
+          var input = e.inputBuffer.getChannelData(0);
+          var output = e.outputBuffer.getChannelData(0);
+          for (var i = 0; i < bufferSize; i++) {
+            phaser += bitcrusher.normfreq;
+            if (phaser >= 1.0) {
+              phaser -= 1.0;
+              last = step * Math.floor(input[i] / step + 0.5);
+            }
+            output[i] = last;
+          }
+        };
+        console.log("bitcrusher prepared")
+
+        this.soundSourceWithEffect
+            .connect(bitcrusher)
+            .connect(streamNode)
 
         let audioElem = this.$el.querySelector("#audio2");
         audioElem.srcObject = streamNode.stream;
@@ -229,8 +303,15 @@ export default {
       } else if (val === "bass_boosted"){
         this.prepareNormal();
         this.prepareBassBoosted();
+      } else if (val === 'convolver'){
+        this.prepareNormal();
+        this.prepareConvolver();
+      } else if (val === 'bitcrusher'){
+        this.prepareNormal();
+        this.prepareBitcrusher();
       }
-    }
+    },
+
   }
 }
 </script>

@@ -17,6 +17,14 @@
           <input type="radio" id="flanger" value="flanger" class="mr-2 cursor-pointer" v-model="chosenEffect">
           <label for="flanger" class="cursor-pointer">Flanger</label>
         </div>
+        <div class="px-2 mr-4">
+          <input type="radio" id="convolver" value="convolver" class="mr-2 cursor-pointer" v-model="chosenEffect">
+          <label for="convolver" class="cursor-pointer">Convolver</label>
+        </div>
+        <div class="px-2 mr-4">
+          <input type="radio" id="bitcrusher" value="bitcrusher" class="mr-2 cursor-pointer" v-model="chosenEffect">
+          <label for="bitcrusher" class="cursor-pointer">Bitcrusher</label>
+        </div>
       </div>
     </div>
   </div>
