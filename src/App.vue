@@ -176,18 +176,39 @@ export default {
 
         const streamNode = this.audioCtxEffect.createMediaStreamDestination();
 
-        let biquadFilter = this.audioCtxEffect.createBiquadFilter();
-        let convolver = this.audioCtxEffect.createConvolver();
-        convolver.buffer = buffer;
-        console.log("bassfilter prepared")
+        let inputNode = this.audioCtxEffect.createGain();
+        let outputNode = this.audioCtxEffect.createGain();
+        let inputFeedbackNode = this.audioCtxEffect.createGain();
+        let wetGainNode = this.audioCtxEffect.createGain();
+        let dryGainNode = this.audioCtxEffect.createGain();
+        let delayNode = this.audioCtxEffect.createDelay();
+        let gainNode = this.audioCtxEffect.createGain();
+        let feedbackNode = this.audioCtxEffect.createGain();
 
-        this.soundSourceWithEffect
-            .connect(biquadFilter)
-            .connect(convolver)
-            .connect(streamNode)
+        inputNode.connect(inputFeedbackNode);
+        inputNode.connect(dryGainNode);
 
-        biquadFilter.type = "lowshelf";
+        inputFeedbackNode.connect(delayNode);
+        inputFeedbackNode.connect(wetGainNode);
 
+        delayNode.connect(wetGainNode);
+        delayNode.connect(feedbackNode);
+
+        feedbackNode.connect(inputFeedbackNode);
+
+        this.soundSourceWithEffect.connect(gainNode);
+        gainNode.connect(delayNode).connect(streamNode);
+
+        delayNode.delayTime.value = 0.5
+        gainNode.gain.value = 0.7
+        dryGainNode.gain.value = 0.3
+        wetGainNode.gain.value = 0.5
+        feedbackNode.gain.value = 0.7
+
+        dryGainNode.connect(outputNode);
+        wetGainNode.connect(outputNode);
+
+        console.log("flanger prepared")
 
         let audioElem = this.$el.querySelector("#audio2");
         audioElem.srcObject = streamNode.stream;
@@ -260,8 +281,8 @@ export default {
         console.log("dupa")
         const bufferSize = 4096;
         let bitcrusher = this.audioCtxEffect.createScriptProcessor(bufferSize, 1, 1);
-        bitcrusher.bits = 4; // between 1 and 16
-        bitcrusher.normfreq = 0.1; // between 0.0 and 1.0
+        bitcrusher.bits = 16; // between 1 and 16
+        bitcrusher.normfreq = 1; // between 0.0 and 1.0
         let step = Math.pow(1/2, bitcrusher.bits);
         let phaser = 0;
         let last = 0;
