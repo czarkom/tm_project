@@ -10,8 +10,8 @@
           <label for="normal" class="cursor-pointer">Without effect</label>
         </div>
         <div class="px-2 mr-4">
-          <input type="radio" id="bass_boosted" value="bass_boosted" class="mr-2" v-model="chosenEffect">
-          <label for="bass_boosted" class="cursor-pointer">Bass boosted</label>
+          <input type="radio" id="lowpass_filter" value="lowpass_filter" class="mr-2" v-model="chosenEffect">
+          <label for="lowpass_filter" class="cursor-pointer">Lowpass filter</label>
         </div>
         <div class="px-2 mr-4">
           <input type="radio" id="flanger" value="flanger" class="mr-2 cursor-pointer" v-model="chosenEffect">

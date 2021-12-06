@@ -3,7 +3,7 @@
     <img class="h-auto w-screen h-screen bg-black top-0 left-0 opacity-50 absolute" src="@/assets/background.jpg">
     <div class="relative text-gray-100">
       <div class="mt-6 p-2 border-t-2 border-b-2 border-gray-300">
-        <div style="font-size: 50px;" class="font-semibold text-gray-800">Mixerinho {{ chosenEffect }}</div>
+        <div style="font-size: 50px;" class="font-semibold text-gray-800">Mixerinho</div>
       </div>
       <div class="my-4 text-xl">
         <div class="pb-2">
@@ -215,7 +215,7 @@ export default {
         this.showCharts = true;
       });
     },
-    prepareBassBoosted() {
+    prepareLowpassFilter() {
       let fileCopy = this.copy(this.fileArrayBuffer);
       this.audioCtxEffect = new AudioContext();
       this.audioCtxEffect.decodeAudioData(fileCopy).then((buffer) => {
@@ -258,7 +258,7 @@ export default {
         }
 
         convolver.buffer = noiseBuffer;
-        console.log("convolver prepared")
+        console.log("Convolver prepared")
 
         this.soundSourceWithEffect
             .connect(convolver)
@@ -278,10 +278,10 @@ export default {
 
         const streamNode = this.audioCtxEffect.createMediaStreamDestination();
 
-        console.log("dupa")
+        console.log("Bitcrusher prepared")
         const bufferSize = 4096;
         let bitcrusher = this.audioCtxEffect.createScriptProcessor(bufferSize, 1, 1);
-        bitcrusher.bits = 16; // between 1 and 16
+        bitcrusher.bits = 4; // between 1 and 16
         bitcrusher.normfreq = 1; // between 0.0 and 1.0
         let step = Math.pow(1/2, bitcrusher.bits);
         let phaser = 0;
@@ -321,9 +321,9 @@ export default {
       } else if (val === "flanger"){
         this.prepareNormal();
         this.prepareFlanger();
-      } else if (val === "bass_boosted"){
+      } else if (val === "lowpass_filter"){
         this.prepareNormal();
-        this.prepareBassBoosted();
+        this.prepareLowpassFilter();
       } else if (val === 'convolver'){
         this.prepareNormal();
         this.prepareConvolver();
